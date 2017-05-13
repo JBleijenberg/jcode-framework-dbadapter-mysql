@@ -1,0 +1,25 @@
+{
+  "name": "jcode/framework-dbadapter-mysql",
+  "type": "library"
+  "description": "MySQL adapter for J!Code PHP framework",
+  "homepage": "https://github.com/JBleijenberg/jcode-framework-dbadapter-mysql",
+  "license": "GPL 3.0",
+  "authors": [
+    {
+      "name": "Jeroen Bleijenberg",
+      "email": "jeroen@jcode.nl",
+      "homepage": "http://jcode.nl",
+      "role": "DevOPS Engineer"
+    }
+  ],
+  "require": {
+    "php": ">=7.0.0",
+    "jcode/framework": "dev-development",
+    "jcode/framework-dbresource": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Jcode\\Db\\Adapter\\Mysql\\": "src/"
+    }
+  }
+}
