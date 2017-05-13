@@ -1,6 +1,6 @@
 {
   "name": "jcode/framework-dbadapter-mysql",
-  "type": "library"
+  "type": "library",
   "description": "MySQL adapter for J!Code PHP framework",
   "homepage": "https://github.com/JBleijenberg/jcode-framework-dbadapter-mysql",
   "license": "GPL 3.0",
