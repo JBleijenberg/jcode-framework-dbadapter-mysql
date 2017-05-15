@@ -14,11 +14,11 @@
   ],
   "require": {
     "php": ">=7.0.0",
-    "jcode/framework": "0.0.*",
-    "jcode/framework-dbresource": "0.0.*"
+    "jcode/framework": "dev-development",
+    "jcode/framework-dbresource": "*"
   },
   "autoload": {
-    "psr-4": {
+    "psr-0": {
       "Jcode\\Db\\Adapter\\Mysql\\": "src/"
     }
   }
