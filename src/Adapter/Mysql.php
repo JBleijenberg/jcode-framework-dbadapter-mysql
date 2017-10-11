@@ -28,12 +28,11 @@ use Jcode\Db\Resource;
 use Jcode\Db\TableInterface;
 use Jcode\Db\Adapter\Mysql\Table\Column;
 use Jcode\Db\Adapter\Mysql\Table;
-use Jcode\Object;
-use \Pdo;
+use Jcode\DataObject;
 use \PDOException;
 use \Exception;
 
-class Mysql extends PDO implements AdapterInterface
+class Mysql extends \PDO implements AdapterInterface
 {
     protected $bindVars = [];
 
@@ -52,9 +51,9 @@ class Mysql extends PDO implements AdapterInterface
     /**
      * Connect to mysql with PDO
      *
-     * @param \Jcode\Object $config
+     * @param \Jcode\DataObject $config
      */
-    public function connect(Object $config)
+    public function connect(DataObject $config)
     {
         $dsn = "mysql:dbname={$config->getName()};host={$config->getHost()}";
 
