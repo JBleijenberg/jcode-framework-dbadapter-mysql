@@ -15,7 +15,7 @@
   "require": {
     "php": ">=7.0.0",
     "jcode/framework": "dev-development",
-    "jcode/framework-dbresource": "*"
+    "jcode/framework-dbresource": "dev-master"
   },
   "autoload": {
     "psr-0": {
