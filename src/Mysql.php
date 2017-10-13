@@ -20,14 +20,14 @@
  * @copyright   Copyright (c) 2017 J!Code (http://www.jcode.nl)
  * @license     http://opensource.org/licenses/GPL-3.0 General Public License (GPL 3.0)
  */
-namespace Jcode\Db\Adapter;
+namespace Jcode\DBAdapter;
 
 use Jcode\Application;
 use Jcode\Db\AdapterInterface;
 use Jcode\Db\Resource;
 use Jcode\Db\TableInterface;
-use Jcode\Db\Adapter\Mysql\Table\Column;
-use Jcode\Db\Adapter\Mysql\Table;
+use Jcode\DBAdapter\Mysql\Table\Column;
+use Jcode\DBAdapter\Mysql\Table;
 use Jcode\DataObject;
 use \PDOException;
 use \Exception;
@@ -75,13 +75,13 @@ class Mysql extends \PDO implements AdapterInterface
      * @param $tableName
      * @param string $engine
      *
-     * @return \Jcode\Db\Adapter\Mysql\Table
+     * @return \Jcode\DBAdapter\Mysql\Table
      * @throws \Exception
      */
     public function getTable($tableName, $engine = 'innoDB')
     {
-        /* @var \Jcode\Db\Adapter\Mysql\Table $table */
-        $table = Application::objectManager()->get('Jcode\Db\Adapter\Mysql\Table');
+        /* @var \Jcode\DBAdapter\Mysql\Table $table */
+        $table = Application::objectManager()->get('Jcode\DBAdapter\Mysql\Table');
 
         $table->setTableName($tableName);
         $table->setEngine($engine);
@@ -90,7 +90,7 @@ class Mysql extends \PDO implements AdapterInterface
     }
 
     /**
-     * @param \Jcode\Db\Adapter\Mysql\Table|\Jcode\Db\TableInterface $table
+     * @param \Jcode\DBAdapter\Mysql\Table|\Jcode\Db\TableInterface $table
      *
      * @return array
      * @throws \Exception
@@ -122,7 +122,7 @@ class Mysql extends \PDO implements AdapterInterface
             $tables .= sprintf('DROP COLUMN %s, ', $column);
         }
 
-        /* @var \Jcode\Db\Adapter\Mysql\Table\Column $column */
+        /* @var \Jcode\DBAdapter\Mysql\Table\Column $column */
         foreach ($table->getAlteredColumns() as $column) {
             if (!array_key_exists($column->getName(), $orderedTableInfo)) {
                 throw new Exception('Trying to alter a non existing column.');
@@ -296,7 +296,7 @@ class Mysql extends \PDO implements AdapterInterface
     /**
      * Create new table
      *
-     * @param \Jcode\Db\Adapter\Mysql\Table|\Jcode\Db\TableInterface $table
+     * @param \Jcode\DBAdapter\Mysql\Table|\Jcode\Db\TableInterface $table
      *
      * @return array
      * @throws \Exception
@@ -309,7 +309,7 @@ class Mysql extends \PDO implements AdapterInterface
     /**
      * Create new table if it doesn't exists yet
      *
-     * @param \Jcode\Db\Adapter\Mysql\Table $table
+     * @param \Jcode\DBAdapter\Mysql\Table $table
      *
      * @return array
      * @throws \Exception
@@ -322,7 +322,7 @@ class Mysql extends \PDO implements AdapterInterface
     /**
      * Create new table and drop it first if it already exists
      *
-     * @param \Jcode\Db\Adapter\Mysql\Table $table
+     * @param \Jcode\DBAdapter\Mysql\Table $table
      *
      * @return array
      * @throws \Exception
@@ -338,7 +338,7 @@ class Mysql extends \PDO implements AdapterInterface
     /**
      * Create new table
      *
-     * @param \Jcode\Db\Adapter\Mysql\Table $table
+     * @param \Jcode\DBAdapter\Mysql\Table $table
      * @param $query
      *
      * @return array

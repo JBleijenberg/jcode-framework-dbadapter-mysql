@@ -20,10 +20,11 @@
  * @copyright   Copyright (c) 2017 J!Code (http://www.jcode.nl)
  * @license     http://opensource.org/licenses/GPL-3.0 General Public License (GPL 3.0)
  */
-namespace Jcode\Db\Adapter\Mysql;
+namespace Jcode\DBAdapter\Mysql;
 
 use Jcode\Application;
 use Jcode\Db\TableInterface;
+use Jcode\DBAdapter\Mysql\Table\Column;
 
 class Table implements TableInterface
 {
@@ -132,8 +133,8 @@ class Table implements TableInterface
      */
     public function addColumn($name, $type, $length = null, array $options = [])
     {
-        /* @var \Jcode\Db\Adapter\Mysql\Table\Column $column */
-        $column = Application::objectManager()->get('Jcode\Db\Adapter\Mysql\Table\Column');
+        /* @var Column $column */
+        $column = Application::objectManager()->get('Jcode\DBAdapter\Mysql\Table\Column');
 
         $column->setName($name);
         $column->setType($type);
@@ -154,7 +155,7 @@ class Table implements TableInterface
      */
     public function alterColumn($name, array $options)
     {
-        /* @var \Jcode\Db\Adapter\Mysql\Table\Column $column */
+        /* @var Column $column */
         $column = Application::objectManager()->get('Jcode\Db\Model\Adapter\Mysql\Table\Column');
 
         $column->setName($name);

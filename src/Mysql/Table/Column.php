@@ -20,7 +20,7 @@
  * @copyright   Copyright (c) 2017 J!Code (http://www.jcode.nl)
  * @license     http://opensource.org/licenses/GPL-3.0 General Public License (GPL 3.0)
  */
-namespace Jcode\Db\Adapter\Mysql\Table;
+namespace Jcode\DBAdapter\Mysql\Table;
 
 class Column
 {
