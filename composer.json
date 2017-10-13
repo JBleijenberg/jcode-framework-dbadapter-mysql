@@ -19,7 +19,7 @@
   },
   "autoload": {
     "psr-4": {
-      "Jcode\\Db\\Adapter\\Mysql\\": "src/"
+      "Jcode\\Db\\Adapter\\": "src/"
     }
   }
 }
