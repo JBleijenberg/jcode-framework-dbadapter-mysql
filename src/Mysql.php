@@ -60,6 +60,7 @@ class Mysql extends \PDO implements AdapterInterface
         $options = [
             parent::ATTR_TIMEOUT => 5,
             parent::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+            parent::ATTR_ERRMODE => parent::ERRMODE_EXCEPTION
         ];
 
         try {
@@ -231,36 +232,14 @@ class Mysql extends \PDO implements AdapterInterface
             throw new Exception('Cannot add column to table. Name or type missing');
         }
 
-        if ($column->getOption('primary') == true) {
+        if ($column->getOption('primary_key') == true) {
             $table->setPrimaryKey($column->getName());
         }
 
         $tables .= sprintf('%s %s', $column->getName(), $column->getType());
 
-        switch ($column->getType()) {
-            case Column::TYPE_BINARY:
-            case Column::TYPE_LONGBLOB:
-            case Column::TYPE_LONGTEXT:
-            case Column::TYPE_MEDIUMBLOB:
-            case Column::TYPE_MEDIUMTEXT:
-            case Column::TYPE_TINYBLOB:
-            case Column::TYPE_TINYTEXT:
-            case Column::TYPE_TEXT:
-            case Column::TYPE_BLOB:
-            case Column::TYPE_TIME:
-            case Column::TYPE_TIMESTAMP:
-            case Column::TYPE_DATE:
-            case Column::TYPE_DATETIME:
-                $length = null;
-
-                break;
-            default:
-                $length = $column->getLength();
-
-        }
-
-        if ($length) {
-            $tables .= sprintf('(%s)', $length);
+        if ($column->getLength() !== null) {
+            $tables .= sprintf('(%s)', $column->getLength());
         }
 
         if ($column->getOption('unsigned') == true) {
@@ -282,8 +261,10 @@ class Mysql extends \PDO implements AdapterInterface
             $tables .= ' ZEROFILL';
         }
 
-        if ($column->getOption('default') != false) {
-            $tables .= sprintf(' DEFAULT "%s"', $column->getOption('default'));
+        if (($default = $column->getOption('default'))) {
+            $tables .= ($default == 'CURRENT_TIMESTAMP')
+                ? sprintf(' DEFAULT %s', $default)
+                : sprintf(' DEFAULT "%s"', $default);
         }
 
         if ($column->getOption('comment') != false) {
@@ -291,6 +272,42 @@ class Mysql extends \PDO implements AdapterInterface
         }
 
         $tables .= ', ';
+    }
+
+    /**
+     * Add index to an existing table
+     *
+     * @param TableInterface $table Table object
+     * @param string $name Name of the index
+     * @param string $column Comma seperated list of columns
+     * @param null $type
+     * @return $this
+     * @throws Exception
+     */
+    public function addIndex(TableInterface $table, $name, $column, $type = null)
+    {
+        $columns = explode(',', $column);
+        $type    = ($type !== null)
+            ? ' UNIQUE '
+            : ' ';
+
+        foreach ($columns as $c) {
+            preg_match("/^([A-z0-9\-_]+)\(/", $c, $matches);
+
+            $columnName = (empty($matches))
+                ? $c
+                : $matches[1];
+
+            if ($table->getColumn($columnName)) {
+                $this->query = "CREATE{$type}INDEX {$name} ON {$table->getTableName()} ({$column});";
+
+                $this->execute();
+            } else {
+                throw new \Exception("Column '{$columnName}' not found in table {$table->getTableName()}'");
+            }
+        }
+
+        return $this;
     }
 
     /**
@@ -354,13 +371,14 @@ class Mysql extends \PDO implements AdapterInterface
 
         foreach ($table->getColumns() as $column) {
             $this->getAddColumnQuery($table, $column, $tables);
-
         }
+
         if ($table->getPrimaryKey()) {
             $tables .= sprintf(' PRIMARY KEY(%s)', $table->getPrimaryKey());
         }
 
-        $query .= sprintf(' (%s) ENGINE=%s DEFAULT CHARSET=%s;', $tables, $table->getEngine(), $table->getCharset());
+        $query .= sprintf(' (%s) ENGINE=%s DEFAULT CHARSET=%s;', preg_replace("/,\s{0,}$/", '', $tables), $table->getEngine(), $table->getCharset());
+
         $this->query = $query;
 
         return $this->execute();
@@ -480,17 +498,17 @@ class Mysql extends \PDO implements AdapterInterface
 
             $stmt->execute();
             $this->commit();
-        } catch (PDOException $e) {
-            $this->rollBack();
-
-            Application::logException($e);
         } catch (Exception $e) {
             $this->rollBack();
 
             Application::logException($e);
         }
 
-        return $stmt->fetchAll(parent::FETCH_ASSOC);
+        if (preg_match("/^SELECT.*/", $this->query)) {
+            return $stmt->fetchAll(parent::FETCH_ASSOC);
+        }
+
+        return [];
     }
 
     /**
