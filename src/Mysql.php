@@ -646,4 +646,13 @@ class Mysql extends \PDO implements AdapterInterface
     {
         $where .= sprintf('%s %s ', $column, $condition);
     }
+
+    public function cleanup()
+    {
+        $this->query         = null;
+        $this->bindIncrement = 1;
+        $this->bindVars      = [];
+
+        return $this;
+    }
 }
