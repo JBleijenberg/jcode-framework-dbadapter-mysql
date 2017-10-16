@@ -141,7 +141,7 @@ class Table implements TableInterface
         $column->setLength($length);
         $column->setOptions($options);
 
-        array_push($this->columns, $column);
+        $this->columns[$name] = $column;
 
         return $this;
     }
@@ -161,7 +161,7 @@ class Table implements TableInterface
         $column->setName($name);
         $column->setOptions($options);
 
-        array_push($this->alterColumns, $column);
+        $this->alterColumns[$name] = $column;
 
         return $this;
     }
@@ -179,7 +179,7 @@ class Table implements TableInterface
      */
     public function dropColumn($name)
     {
-        array_push($this->dropColumns, $name);
+        $this->dropColumns[$name] = $name;
 
         return $this;
     }
@@ -192,6 +192,11 @@ class Table implements TableInterface
     public function getColumns()
     {
         return $this->columns;
+    }
+
+    public function getColumn($name)
+    {
+        return $this->columns[$name];
     }
 
     public function setPrimaryKey($key)
