@@ -502,13 +502,15 @@ class Mysql extends \PDO implements AdapterInterface
             $this->rollBack();
 
             Application::logException($e);
+
+            throw new \Exception($e->getMessage());
         }
 
-        if (preg_match("/^SELECT.*/", $this->query)) {
-            return $stmt->fetchAll(parent::FETCH_ASSOC);
+        if (preg_match("/^(DROP|CREATE|ALTER).*/", $this->query)) {
+            return [];
         }
 
-        return [];
+        return $stmt->fetchAll(parent::FETCH_ASSOC);
     }
 
     /**
