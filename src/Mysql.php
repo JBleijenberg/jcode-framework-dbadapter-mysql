@@ -384,7 +384,7 @@ class Mysql extends \PDO implements AdapterInterface
         return $this->execute();
     }
 
-    public function build(Resource $resource)
+    public function build(Resource $resource, $delete = false)
     {
         $select = '';
 
@@ -397,7 +397,10 @@ class Mysql extends \PDO implements AdapterInterface
         }
 
         $select = trim($select, ', ');
-        $query = sprintf('SELECT %s FROM %s AS main_table', $select, $resource->getTable());
+
+        $query = ($delete === false)
+            ? sprintf('SELECT %s FROM %s AS main_table', $select, $resource->getTable())
+            : sprintf('DELETE %s FROM %s AS main_table', $select, $resource->getTable());
 
         if (count($resource->getJoin())) {
             foreach ($resource->getJoin() as $join) {
@@ -506,9 +509,11 @@ class Mysql extends \PDO implements AdapterInterface
             throw new \Exception($e->getMessage());
         }
 
-        if (preg_match("/^(DROP|CREATE|ALTER).*/", $this->query)) {
+        if (preg_match("/^(DROP|CREATE|ALTER|DELETE).*/", $this->query)) {
             return [];
         }
+
+        $this->cleanup();
 
         return $stmt->fetchAll(parent::FETCH_ASSOC);
     }
@@ -630,12 +635,19 @@ class Mysql extends \PDO implements AdapterInterface
     protected function formatInStatement($condition, $column, $value, &$where)
     {
         if (is_array($value)) {
-            $value = implode(',', $value);
+            $replace = '';
+
+            foreach ($value as $v) {
+                $this->bindVars[$this->bindIncrement++] = $v;
+                $replace .= '?,';
+            }
+
+            $replace = preg_replace('/,$/', '', $replace);
+        } else {
+            $replace = $value;
         }
 
-        $where .= sprintf('%s %s (?) ', $column, $condition);
-
-        $this->bindVars[$this->bindIncrement++] = $value;
+        $where .= sprintf('%s %s (%s) ', $column, $condition, $replace);
     }
 
     /**
