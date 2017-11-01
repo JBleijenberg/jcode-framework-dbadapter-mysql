@@ -82,7 +82,7 @@ class Mysql extends \PDO implements AdapterInterface
     public function getTable($tableName, $engine = 'innoDB')
     {
         /* @var \Jcode\DBAdapter\Mysql\Table $table */
-        $table = Application::objectManager()->get('Jcode\DBAdapter\Mysql\Table');
+        $table = Application::getClass('Jcode\DBAdapter\Mysql\Table');
 
         $table->setTableName($tableName);
         $table->setEngine($engine);

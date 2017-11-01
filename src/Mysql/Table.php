@@ -134,7 +134,7 @@ class Table implements TableInterface
     public function addColumn($name, $type, $length = null, array $options = [])
     {
         /* @var Column $column */
-        $column = Application::objectManager()->get('Jcode\DBAdapter\Mysql\Table\Column');
+        $column = Application::getClass('Jcode\DBAdapter\Mysql\Table\Column');
 
         $column->setName($name);
         $column->setType($type);
@@ -156,7 +156,7 @@ class Table implements TableInterface
     public function alterColumn($name, array $options)
     {
         /* @var Column $column */
-        $column = Application::objectManager()->get('Jcode\Db\Model\Adapter\Mysql\Table\Column');
+        $column = Application::getClass('Jcode\Db\Model\Adapter\Mysql\Table\Column');
 
         $column->setName($name);
         $column->setOptions($options);
