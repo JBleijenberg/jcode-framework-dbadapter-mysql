@@ -488,8 +488,6 @@ class Mysql extends \PDO implements AdapterInterface
             throw new Exception('No query specified. Run build() first');
         }
 
-        $stmt = [];
-
         try {
             $this->beginTransaction();
 
