@@ -29,6 +29,7 @@ use Jcode\Db\TableInterface;
 use Jcode\DBAdapter\Mysql\Table\Column;
 use Jcode\DBAdapter\Mysql\Table;
 use Jcode\DataObject;
+use Jcode\Log;
 use \PDOException;
 use \Exception;
 
@@ -499,6 +500,16 @@ class Mysql extends \PDO implements AdapterInterface
 
             $stmt->execute();
             $this->commit();
+
+            if (Application::logMysqlQueries()) {
+                $logger = new Log;
+
+                $logger->setLogfile(BP . '/var/log/mysql.log');
+                $logger->setLevel(3);
+                $logger->setMessage($this->getQuery());
+
+                $logger->write();
+            }
         } catch (Exception $e) {
             $this->rollBack();
 
