@@ -60,8 +60,9 @@ class Mysql extends \PDO implements AdapterInterface
 
         $options = [
             parent::ATTR_TIMEOUT => 5,
-            parent::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
-            parent::ATTR_ERRMODE => parent::ERRMODE_EXCEPTION
+            parent::MYSQL_ATTR_USE_BUFFERED_QUERY => false,
+            parent::ATTR_ERRMODE => parent::ERRMODE_EXCEPTION,
+            parent::ATTR_AUTOCOMMIT => false
         ];
 
         try {
@@ -263,9 +264,13 @@ class Mysql extends \PDO implements AdapterInterface
         }
 
         if (($default = $column->getOption('default'))) {
-            $tables .= ($default == 'CURRENT_TIMESTAMP')
+            $tables .= ($default == 'current_timestamp()')
                 ? sprintf(' DEFAULT %s', $default)
                 : sprintf(' DEFAULT "%s"', $default);
+        }
+
+        if ($column->getOption('on_update')) {
+            $tables .= sprintf(' ON UPDATE %s', $column->getOption('on_update'));
         }
 
         if ($column->getOption('comment') != false) {
@@ -490,7 +495,9 @@ class Mysql extends \PDO implements AdapterInterface
         }
 
         try {
-            $this->beginTransaction();
+            if (!$this->inTransaction()) {
+                $this->beginTransaction();
+            }
 
             $stmt = parent::prepare($this->query);
 
