@@ -41,6 +41,8 @@ class Table implements TableInterface
 
     protected $primaryKey;
 
+    protected $foreignKeys = [];
+
     protected $charset = 'utf8';
 
     const ENGINE_INNODB = 'InnoDB';
@@ -146,6 +148,18 @@ class Table implements TableInterface
         return $this;
     }
 
+    public function addForeignKey(TableInterface $parent, array $options)
+    {
+        $this->foreignKeys[$options['column']] = [
+            'table'       => $parent->getTableName(),
+            'primary_key' => $parent->getPrimaryKey(),
+            'on_delete'   => $options['on_delete'] ?? false,
+            'on_update'   => $options['on_update'] ?? false,
+        ];
+
+        return $this;
+    }
+
     /**
      * Alter column from this table
      *
@@ -209,5 +223,10 @@ class Table implements TableInterface
     public function getPrimaryKey()
     {
         return $this->primaryKey;
+    }
+
+    public function getForeignKeys()
+    {
+        return $this->foreignKeys;
     }
 }

@@ -81,13 +81,44 @@ class Mysql extends \PDO implements AdapterInterface
      * @return \Jcode\DBAdapter\Mysql\Table
      * @throws \Exception
      */
-    public function getTable($tableName, $engine = 'innoDB')
+    public function getTable($tableName, $load = false, $engine = 'innoDB')
     {
         /* @var \Jcode\DBAdapter\Mysql\Table $table */
         $table = Application::getClass('Jcode\DBAdapter\Mysql\Table');
 
         $table->setTableName($tableName);
         $table->setEngine($engine);
+
+        if ($load === true) {
+            $this->loadTable($table);
+        }
+
+        return $table;
+    }
+
+    protected function loadTable(TableInterface $table)
+    {
+        $this->query = sprintf('SHOW FULL COLUMNS FROM %s', $table->getTableName());
+
+        $tableInfo = $this->execute();
+
+        foreach ($tableInfo as $column) {
+            preg_match("/^([\w]+)\(([\d]+)\)\s?([\w]+)?/", $column['Type'], $matches);
+
+            if (!empty($matches)) {
+                $table->addColumn($column['Field'], $matches[1], $matches[2] ?? null, [
+                    'unsigned' => (isset($matches[3]) && $matches[3] == 'unsigned') ? true : false,
+                    'default' => $column['Default'],
+                    'auto_increment' => (strstr($column['Extra'], 'auto_increment')) ? true : false,
+                    'not_null' => ($column['Null'] == 'NO') ? true : false,
+                    'primary_key' => ($column['Key'] == 'PRI') ? true : false,
+                ]);
+
+                if ($column['Key'] == 'PRI') {
+                    $table->setPrimaryKey($column['Field']);
+                }
+            }
+        }
 
         return $table;
     }
@@ -238,46 +269,47 @@ class Mysql extends \PDO implements AdapterInterface
             $table->setPrimaryKey($column->getName());
         }
 
-        $tables .= sprintf('%s %s', $column->getName(), $column->getType());
+
+        $t = sprintf('%s %s', $column->getName(), $column->getType());
 
         if ($column->getLength() !== null) {
-            $tables .= sprintf('(%s)', $column->getLength());
+            $t .= sprintf('(%s)', $column->getLength());
         }
 
         if ($column->getOption('unsigned') == true) {
-            $tables .= ' unsigned';
+            $t .= ' unsigned';
         }
 
         if ($column->getOption('not_null') == true) {
-            $tables .= ' NOT NULL';
+            $t .= ' NOT NULL';
         }
 
 
         if ((!$table->getPrimaryKey() && $column->getOption('auto_increment') == true)
             || ($table->getPrimaryKey() == $column->getName())
         ) {
-            $tables .= ' AUTO_INCREMENT';
+            $t .= ' AUTO_INCREMENT';
         }
 
         if ($column->getOption('zerofill') == true) {
-            $tables .= ' ZEROFILL';
+            $t .= ' ZEROFILL';
         }
 
         if (($default = $column->getOption('default'))) {
-            $tables .= ($default == 'current_timestamp()')
+            $t .= ($default == 'current_timestamp()')
                 ? sprintf(' DEFAULT %s', $default)
                 : sprintf(' DEFAULT "%s"', $default);
         }
 
         if ($column->getOption('on_update')) {
-            $tables .= sprintf(' ON UPDATE %s', $column->getOption('on_update'));
+            $t .= sprintf(' ON UPDATE %s', $column->getOption('on_update'));
         }
 
         if ($column->getOption('comment') != false) {
-            $tables .= sprintf(' COMMENT "%s"', $column->getOption('comment'));
+            $t .= sprintf(' COMMENT "%s"', $column->getOption('comment'));
         }
 
-        $tables .= ', ';
+        $tables[] = $t;
     }
 
     /**
@@ -373,16 +405,33 @@ class Mysql extends \PDO implements AdapterInterface
             throw new Exception('Not enough data to create table');
         }
 
-        $tables = '';
+        $tables = [];
 
         foreach ($table->getColumns() as $column) {
             $this->getAddColumnQuery($table, $column, $tables);
         }
 
         if ($table->getPrimaryKey()) {
-            $tables .= sprintf(' PRIMARY KEY(%s)', $table->getPrimaryKey());
+            $tables[] = sprintf('PRIMARY KEY(%s)', $table->getPrimaryKey());
         }
 
+        if (!empty($table->getForeignKeys())) {
+            foreach ($table->getForeignKeys() as $column => $options) {
+                $fk = sprintf('FOREIGN KEY (%s) REFERENCES %s(%s)', $column, $options['table'], $options['primary_key']);
+
+                if ($options['on_update']) {
+                    $fk .= sprintf('ON UPDATE %s', $options['on_update']);
+                }
+
+                if ($options['on_delete']) {
+                    $fk .= sprintf('ON DELETE %s', $options['on_delete']);
+                }
+
+                $tables[] = $fk;
+            }
+        }
+
+        $tables = implode(', ', $tables);
         $query .= sprintf(' (%s) ENGINE=%s DEFAULT CHARSET=%s;', preg_replace("/,\s{0,}$/", '', $tables), $table->getEngine(), $table->getCharset());
 
         $this->query = $query;
