@@ -439,96 +439,74 @@ class Mysql extends \PDO implements AdapterInterface
         return $this->execute();
     }
 
+    /**
+     * @param \Jcode\Db\Resource $resource
+     * @param bool $delete
+     * @return $this
+     */
     public function build(Resource $resource, $delete = false)
     {
-        $select = '';
+        $select = [];
 
         if ($resource->getDistinct() && !in_array($resource->getDistinct(), $resource->getSelect())) {
-            $select .= sprintf('DISTINCT %s, ', $resource->getDistinct());
+            $select[] = sprintf('DISTINCT %s', $resource->getDistinct());
         }
 
         foreach ($resource->getSelect() as $column) {
-            $select .= sprintf('%s, ', $column);
+            $select[] = sprintf('%s', $column);
         }
 
-        $select = trim($select, ', ');
+        $select = implode(', ', $select);
 
-        $query = ($delete === false)
-            ? sprintf('SELECT %s FROM %s AS main_table', $select, $resource->getTable())
-            : sprintf('DELETE %s FROM %s AS main_table', $select, $resource->getTable());
+        $query[] = sprintf('%s %s FROM %s AS main_table', ($delete === false) ? 'SELECT' : 'DELETE', $select, $resource->getTable());
 
-        if (count($resource->getJoin())) {
-            foreach ($resource->getJoin() as $join) {
-                reset($join['tables']);
+        foreach ($resource->getJoin() as $join) {
+            reset($join['tables']);
 
-                $query .= sprintf(
-                    ' %s JOIN %s AS %s ON %s',
-                    strtoupper($join['type']),
-                    key($join['tables']),
-                    current($join['tables']),
-                    $join['clause']
-                );
-            }
+            $query[] = sprintf(
+                '%s JOIN %s AS %s ON %s',
+                strtoupper($join['type']),
+                key($join['tables']),
+                current($join['tables']),
+                $join['clause']
+            );
         }
 
-        $where = '';
+        $where = [];
 
-        if (count($resource->getFilter())) {
-            $filters = $resource->getFilter();
-
-            foreach ($filters as $column => $filter) {
-                reset($filters);
-
-                foreach ($filter as $condition) {
-                    $where .= ($column === key($filters)) ? ' WHERE ' : 'AND ';
-
-                    $this->formatStatement(key($condition), $column, current($condition), $where);
-                }
-            }
-
-            if (!count($resource->getExpression()) && $where != '') {
-                $query .= $where;
+        foreach ($resource->getFilter() as $column => $filter) {
+            foreach ($filter as $condition) {
+                $this->formatStatement(key($condition), $column, current($condition), $where);
             }
         }
 
-        if (count($resource->getExpression())) {
-            $where .= (empty($where)) ? ' WHERE ' : ' AND ';
+        foreach ($resource->getOrFilter() as $orFilter) {
+            $this->formatOrStatement($orFilter, $where);
+        }
 
-            foreach ($resource->getExpression() as $column => $expression) {
-                foreach ($expression as $expr) {
-                    $where .= sprintf('%s %s', $column, key($expr));
+        foreach ($resource->getExpression() as $column => $expression) {
+            $where[] = sprintf('%s %s %s ', $column, key($expression), current($expression));
+        }
 
-                    if (is_array(current($expr))) {
-                        foreach (current($expr) as $value) {
-                            $this->bindVars[$this->bindIncrement++] = $value;
-                        }
-                    } else {
-                        $this->bindVars[$this->bindIncrement++] = current($expr);
-                    }
-
-                    $query .= $where;
-                }
-            }
+        if (count($where)) {
+            $query[] = sprintf('WHERE %s', implode(' AND ', $where));
         }
 
         if ($resource->getGroupBy()) {
-            $query .= sprintf(' GROUP BY %s', $resource->getGroupBy());
+            $query[] = sprintf('GROUP BY %s', $resource->getGroupBy());
         }
 
-        if (count($resource->getOrder())) {
-            foreach ($resource->getOrder() as $i => $order) {
-                $query .= ($i == 0)
-                    ? sprintf(' ORDER BY %s %s', key($order), current($order))
-                    : sprintf(', %s %s', key($order), current($order));
-            }
+        foreach ($resource->getOrder() as $i => $order) {
+            $query[] = ($i == 0)
+                ? sprintf('ORDER BY %s %s', key($order), current($order))
+                : sprintf(', %s %s', key($order), current($order));
         }
 
         if (count($resource->getLimit())) {
-            $query .= sprintf(' LIMIT %s, %s', $resource->getLimit('offset'), $resource->getLimit('limit'));
+            $query[] = sprintf('LIMIT %s, %s', $resource->getLimit('offset'), $resource->getLimit('limit'));
         }
 
-
-        $this->query = "{$query};";
+        $this->query = sprintf('%s;', implode(' ', $query));
 
         return $this;
     }
@@ -660,11 +638,22 @@ class Mysql extends \PDO implements AdapterInterface
                 $this->formatNullStatement('IS NULL', $column, $where);
                 break;
             case 'not-null':
-                $this->formatNullStatement('NOT NULL', $column, $where);
+                $this->formatNullStatement('IS NOT NULL', $column, $where);
                 break;
             default:
                 throw new \Exception('Invalied condition supplied');
         }
+    }
+
+    protected function formatOrStatement($filter, &$where)
+    {
+        $or = [];
+
+        foreach ($filter as $column => $condition) {
+            $this->formatStatement(key(current($condition)), key($condition), current($condition), $or);
+        }
+
+        $where[] = sprintf('(%s)', implode(' OR ', $or));
     }
 
     /**
@@ -675,20 +664,8 @@ class Mysql extends \PDO implements AdapterInterface
      */
     protected function defaultFormatStatement($condition, $column, $value, &$where)
     {
-        if (is_array($value)) {
-            $valArr = [];
-
-            foreach ($value as $val) {
-                $valArr[] = sprintf('%s %s ?', $column, $condition);
-
-                $this->bindVars[$this->bindIncrement++] = $val;
-            }
-
-            $where .= sprintf('(%s) ', implode(' OR ', $valArr));
-        } else {
-            $where .= sprintf('%s %s ?', $column, $condition);
-            $this->bindVars[$this->bindIncrement++] = $value;
-        }
+        $where[] = sprintf('(%s %s ?)', $column, $condition);
+        $this->bindVars[$this->bindIncrement++] = $value;
     }
 
     /**
@@ -712,7 +689,7 @@ class Mysql extends \PDO implements AdapterInterface
             $replace = $value;
         }
 
-        $where .= sprintf('%s %s (%s) ', $column, $condition, $replace);
+        $where[] = sprintf('(%s %s (%s))', $column, $condition, $replace);
     }
 
     /**
@@ -723,7 +700,7 @@ class Mysql extends \PDO implements AdapterInterface
      */
     protected function formatNullStatement($condition, $column, &$where)
     {
-        $where .= sprintf('%s %s ', $column, $condition);
+        $where[] = sprintf('(%s %s)', $column, $condition);
     }
 
     public function cleanup()
