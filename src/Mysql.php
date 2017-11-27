@@ -640,6 +640,9 @@ class Mysql extends \PDO implements AdapterInterface
             case 'not-null':
                 $this->formatNullStatement('IS NOT NULL', $column, $where);
                 break;
+            case 'date':
+                $this->formatDateStatement('BETWEEN', $column, $value, $where);
+                break;
             default:
                 throw new \Exception('Invalied condition supplied');
         }
@@ -656,6 +659,16 @@ class Mysql extends \PDO implements AdapterInterface
         $where[] = sprintf('(%s)', implode(' OR ', $or));
     }
 
+    protected function formatDateStatement($confition, $column, $value, &$where)
+    {
+
+        $this->bindVars[$this->bindIncrement++] = $value['from'];
+        $this->bindVars[$this->bindIncrement++] = $value['to'];
+
+        $where[] = sprintf('(%s %s ? AND ?)', $column, $confition, $value['from'], $value['to']);
+
+        return $this;
+    }
     /**
      * @param $condition
      * @param $column
