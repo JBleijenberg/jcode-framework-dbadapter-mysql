@@ -146,32 +146,34 @@ class Mysql extends \PDO implements AdapterInterface
         }, $tableInfo);
 
         $query = sprintf('ALTER TABLE %s', $table->getTableName());
-        $tables = '';
+        $tables = [];
 
         foreach ($table->getDroppedColumns() as $column) {
             if (!array_key_exists($column, $orderedTableInfo)) {
                 throw new Exception('Trying to drop a non existing column.');
             }
 
-            $tables .= sprintf('DROP COLUMN %s, ', $column);
+            $tables[] = sprintf('DROP COLUMN %s, ', $column);
         }
 
         /* @var \Jcode\DBAdapter\Mysql\Table\Column $column */
         foreach ($table->getAlteredColumns() as $column) {
+            $table = [];
+
             if (!array_key_exists($column->getName(), $orderedTableInfo)) {
                 throw new Exception('Trying to alter a non existing column.');
             }
 
             if ($column->getOption('name')) {
-                $tables .= sprintf('CHANGE COLUMN %s %s', $column->getName(), $column->getOption('name'));
+                $table[] = sprintf('CHANGE COLUMN %s %s', $column->getName(), $column->getOption('name'));
             } else {
-                $tables .= sprintf('CHANGE COLUMN %s', $column->getName());
+                $table[] = sprintf('CHANGE COLUMN %s', $column->getName());
             }
 
             $columnInfo = $orderedTableInfo[$column->getName()];
 
             if ($column->getOption('type')) {
-                $tables .= sprintf(' %s', strtoupper($column->getOption('type')));
+                $table[] = sprintf('%s', strtoupper($column->getOption('type')));
 
                 switch ($column->getOption('type')) {
                     case Column::TYPE_BINARY:
@@ -198,63 +200,60 @@ class Mysql extends \PDO implements AdapterInterface
                         $length = $column->getOption('length');
                 }
 
-                $tables .= sprintf('(%s)', $length);
+                $table[] = sprintf('(%s)', $length);
             }
 
             if ($column->getOption('unsigned') == true) {
-                $tables .= ' unsigned';
+                $table[].= 'unsigned';
             }
 
             if ($column->getOption('not_null') == true) {
-                $tables .= ' NOT NULL';
+                $table[].= 'NOT NULL';
             } else {
                 if ($column->getOption('not_null') === false && $columnInfo['Null'] == 'YES') {
-                    $tables .= ' NULL';
+                    $table[] = 'NULL';
                 }
             }
 
             if ($column->getOption('auto_increment') == true) {
-                $tables .= ' AUTO_INCREMENT';
+                $table[] = 'AUTO_INCREMENT';
             }
 
             if ($column->getOption('zerofill') == true) {
-                $tables .= ' ZEROFILL';
+                $table[] = 'ZEROFILL';
             } else {
                 if ($column->getOption('zerofill') === false) {
-                    $tables .= ' DROP ZEROFILL';
+                    $table[] = 'DROP ZEROFILL';
                 }
             }
 
             if ($column->getOption('default')) {
-                $tables .= sprintf(' DEFAULT "%s"', $column->getOption('default'));
+                $table[] = sprintf('DEFAULT "%s"', $column->getOption('default'));
             } else {
                 if ($column->getOption('default') === false) {
-                    $tables .= ' DROP DEFAULT';
+                    $table[] = 'DROP DEFAULT';
                 }
             }
 
             if ($column->getOption('comment')) {
-                $tables .= sprintf(' COMMENT "%s"', $column->getOption('comment'));
+                $table[] = sprintf(' COMMENT "%s"', $column->getOption('comment'));
             } else {
                 if ($column->getOption('comment') === false) {
-                    $tables .= ' COMMENT ""';
+                    $table[] = 'COMMENT ""';
                 }
             }
 
-            $tables .= ', ';
+            $tables[] = implode(' ', $table);
+            $tables[] = ', ';
         }
 
         if ($table->getColumns()) {
             foreach ($table->getColumns() as $column) {
-                $tables .= 'ADD ';
-
                 $this->getAddColumnQuery($table, $column, $tables);
             }
         }
 
-        $tables = trim($tables, ', ');
-
-        $this->query = sprintf('%s %s;', $query, $tables);
+        $this->query = sprintf('%s %s;', $query, implode(', ', $tables));
 
         return $this->execute();
     }
@@ -270,46 +269,46 @@ class Mysql extends \PDO implements AdapterInterface
         }
 
 
-        $t = sprintf('%s %s', $column->getName(), $column->getType());
+        $t[] = sprintf('ADD %s %s', $column->getName(), $column->getType());
 
         if ($column->getLength() !== null) {
-            $t .= sprintf('(%s)', $column->getLength());
+            $t[] = sprintf('(%s)', $column->getLength());
         }
 
         if ($column->getOption('unsigned') == true) {
-            $t .= ' unsigned';
+            $t[] = 'unsigned';
         }
 
         if ($column->getOption('not_null') == true) {
-            $t .= ' NOT NULL';
+            $t[] = 'NOT NULL';
         }
 
 
         if ((!$table->getPrimaryKey() && $column->getOption('auto_increment') == true)
             || ($table->getPrimaryKey() == $column->getName())
         ) {
-            $t .= ' AUTO_INCREMENT';
+            $t[] = 'AUTO_INCREMENT';
         }
 
         if ($column->getOption('zerofill') == true) {
-            $t .= ' ZEROFILL';
+            $t[] = 'ZEROFILL';
         }
 
         if (($default = $column->getOption('default'))) {
-            $t .= ($default == 'current_timestamp()')
-                ? sprintf(' DEFAULT %s', $default)
-                : sprintf(' DEFAULT "%s"', $default);
+            $t[] = ($default == 'current_timestamp()')
+                ? sprintf('DEFAULT %s', $default)
+                : sprintf('DEFAULT "%s"', $default);
         }
 
         if ($column->getOption('on_update')) {
-            $t .= sprintf(' ON UPDATE %s', $column->getOption('on_update'));
+            $t[] = sprintf('ON UPDATE %s', $column->getOption('on_update'));
         }
 
         if ($column->getOption('comment') != false) {
-            $t .= sprintf(' COMMENT "%s"', $column->getOption('comment'));
+            $t[] = sprintf('COMMENT "%s"', $column->getOption('comment'));
         }
 
-        $tables[] = $t;
+        $tables[] = implode(' ', $t);
     }
 
     /**
@@ -496,11 +495,15 @@ class Mysql extends \PDO implements AdapterInterface
             $query[] = sprintf('GROUP BY %s', $resource->getGroupBy());
         }
 
+        $orders = [];
+
         foreach ($resource->getOrder() as $i => $order) {
-            $query[] = ($i == 0)
+            $orders[] = ($i == 0)
                 ? sprintf('ORDER BY %s %s', key($order), current($order))
-                : sprintf(', %s %s', key($order), current($order));
+                : sprintf('%s %s', key($order), current($order));
         }
+
+        $query[] = implode(', ', $orders);
 
         if (count($resource->getLimit())) {
             $query[] = sprintf('LIMIT %s, %s', $resource->getLimit('offset'), $resource->getLimit('limit'));
