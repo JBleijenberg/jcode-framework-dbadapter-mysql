@@ -249,7 +249,7 @@ class Mysql extends \PDO implements AdapterInterface
 
         if ($table->getColumns()) {
             foreach ($table->getColumns() as $column) {
-                $this->getAddColumnQuery($table, $column, $tables);
+                $this->getAddColumnQuery($table, $column, $tables, true);
             }
         }
 
@@ -258,7 +258,7 @@ class Mysql extends \PDO implements AdapterInterface
         return $this->execute();
     }
 
-    public function getAddColumnQuery(Table $table, Column $column, &$tables)
+    public function getAddColumnQuery(Table $table, Column $column, &$tables, $alterTable = false)
     {
         if (!$column->getName() || !$column->getType()) {
             throw new Exception('Cannot add column to table. Name or type missing');
@@ -269,7 +269,9 @@ class Mysql extends \PDO implements AdapterInterface
         }
 
 
-        $t[] = sprintf('ADD %s %s', $column->getName(), $column->getType());
+        $t[] = ($alterTable == false)
+            ? sprintf('%s %s', $column->getName(), $column->getType())
+            : sprintf('ADD %s %s', $column->getName(), $column->getType());
 
         if ($column->getLength() !== null) {
             $t[] = sprintf('(%s)', $column->getLength());
