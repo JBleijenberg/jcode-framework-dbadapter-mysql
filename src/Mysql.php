@@ -98,7 +98,7 @@ class Mysql extends \PDO implements AdapterInterface
 
     protected function loadTable(TableInterface $table)
     {
-        $this->query = sprintf('SHOW FULL COLUMNS FROM %s', $table->getTableName());
+        $this->query = sprintf('SHOW FULL COLUMNS FROM `%s`', $table->getTableName());
 
         $tableInfo = $this->execute();
 
@@ -131,7 +131,7 @@ class Mysql extends \PDO implements AdapterInterface
      */
     public function alterTable(TableInterface $table)
     {
-        $this->query = sprintf('SHOW FULL COLUMNS FROM %s', $table->getTableName());
+        $this->query = sprintf('SHOW FULL COLUMNS FROM `%s`', $table->getTableName());
 
         $tableInfo = $this->execute();
 
@@ -145,7 +145,7 @@ class Mysql extends \PDO implements AdapterInterface
             $orderedTableInfo[$arr['Field']] = $arr;
         }, $tableInfo);
 
-        $query = sprintf('ALTER TABLE %s', $table->getTableName());
+        $query = sprintf('ALTER TABLE `%s`', $table->getTableName());
         $tables = [];
 
         foreach ($table->getDroppedColumns() as $column) {
@@ -318,33 +318,20 @@ class Mysql extends \PDO implements AdapterInterface
      *
      * @param TableInterface $table Table object
      * @param string $name Name of the index
-     * @param string $column Comma seperated list of columns
+     * @param string $columns Comma seperated list of columns
      * @param null $type
      * @return $this
      * @throws Exception
      */
-    public function addIndex(TableInterface $table, $name, $column, $type = null)
+    public function addIndex(TableInterface $table, $name, $columns, $type = null)
     {
-        $columns = explode(',', $column);
         $type    = ($type !== null)
             ? ' UNIQUE '
             : ' ';
 
-        foreach ($columns as $c) {
-            preg_match("/^([A-z0-9\-_]+)\(/", $c, $matches);
+        $this->query = "CREATE{$type}INDEX {$name} ON `{$table->getTableName()}` ({$columns});";
 
-            $columnName = (empty($matches))
-                ? $c
-                : $matches[1];
-
-            if ($table->getColumn($columnName)) {
-                $this->query = "CREATE{$type}INDEX {$name} ON {$table->getTableName()} ({$column});";
-
-                $this->execute();
-            } else {
-                throw new \Exception("Column '{$columnName}' not found in table {$table->getTableName()}'");
-            }
-        }
+        $this->execute();
 
         return $this;
     }
@@ -359,7 +346,7 @@ class Mysql extends \PDO implements AdapterInterface
      */
     public function createTable(TableInterface $table)
     {
-        return $this->executeCreateTable($table, sprintf('CREATE TABLE %s', $table->getTableName()));
+        return $this->executeCreateTable($table, sprintf('CREATE TABLE `%s`', $table->getTableName()));
     }
 
     /**
@@ -372,7 +359,7 @@ class Mysql extends \PDO implements AdapterInterface
      */
     public function createTableIfNotExists(Table $table)
     {
-        return $this->executeCreateTable($table, sprintf('CREATE TABLE IF NOT EXISTS %s', $table->getTableName()));
+        return $this->executeCreateTable($table, sprintf('CREATE TABLE IF NOT EXISTS `%s`', $table->getTableName()));
     }
 
     /**
@@ -387,7 +374,7 @@ class Mysql extends \PDO implements AdapterInterface
     {
         return $this->executeCreateTable(
             $table,
-            sprintf('DROP TABLE IF EXISTS %s; CREATE TABLE %s', $table->getTableName(), $table->getTableName())
+            sprintf('DROP TABLE IF EXISTS %s; CREATE TABLE `%s`', $table->getTableName(), $table->getTableName())
         );
     }
 
@@ -459,7 +446,7 @@ class Mysql extends \PDO implements AdapterInterface
 
         $select = implode(', ', $select);
 
-        $query[] = sprintf('%s %s FROM %s AS main_table', ($delete === false) ? 'SELECT' : 'DELETE', $select, $resource->getTable());
+        $query[] = sprintf('%s %s FROM `%s` AS main_table', ($delete === false) ? 'SELECT' : 'DELETE', $select, $resource->getTable());
 
         foreach ($resource->getJoin() as $join) {
             reset($join['tables']);
